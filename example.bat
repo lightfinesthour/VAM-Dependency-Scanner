@@ -1,0 +1,1 @@
+python DependencyScanner.py --path "E:\Games\Virt-A-Mate" --source "S:\VR\VAM\Virt-A-Mate EXTRA Pack" --dest "E:\Games\Virt-A-Mate\AddonPackages\_FoundDependencies" --copy-found --output results.txt --verbose
