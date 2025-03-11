@@ -221,12 +221,12 @@ def find_dependency_match(dependency, sourceVarFiles):
     
     return None
 
-# Check for missing references and copy found references if destPath is provided
 def checkMissingReferences(mainPath: str, sourcePath: str, destPath: str = None) -> dict:
     try:
         dpPrint(f"Getting dependencies from main path: {mainPath}", args.output)
-        _, mainDependencies = getAllVars(mainPath)
+        mainVarList, mainDependencies = getAllVars(mainPath)
         dpPrint(f"Found {len(mainDependencies)} dependencies in main path", args.output)
+        dpPrint(f"Found {len(mainVarList)} var files in main path", args.output)
         
         dpPrint(f"Getting available var files from source path: {sourcePath}", args.output)
         # Don't require AddonPackages folder in source directory
@@ -254,11 +254,28 @@ def checkMissingReferences(mainPath: str, sourcePath: str, destPath: str = None)
         # Find missing dependencies
         missingRefs = {}
         foundRefs = {}
+        alreadySatisfiedRefs = {}
         
         for dependency, dependents in mainDependencies.items():
             try:
                 # Skip empty dependencies
                 if not dependency or dependency.isspace():
+                    continue
+                
+                # Check if dependency already exists in the main path
+                dependency_already_exists = False
+                for var_name in mainVarList:
+                    if var_name == dependency or (dependency.endswith('.latest') and var_name.startswith(dependency[:-7])):
+                        dependency_already_exists = True
+                        alreadySatisfiedRefs[dependency] = {
+                            'satisfied_by': var_name,
+                            'dependents': dependents
+                        }
+                        break
+                
+                if dependency_already_exists:
+                    if args.verbose:
+                        dpPrint(f"Dependency already satisfied: {dependency}", args.output)
                     continue
                 
                 # Find the best matching file for this dependency
@@ -288,11 +305,17 @@ def checkMissingReferences(mainPath: str, sourcePath: str, destPath: str = None)
                 continue
                 
         # Report statistics
+        dpPrint(f"Dependencies already satisfied: {len(alreadySatisfiedRefs)}", args.output)
         dpPrint(f"Found matches for {len(foundRefs)} dependencies", args.output)
         dpPrint(f"Missing {len(missingRefs)} dependencies", args.output)
         
         if destPath:
             dpPrint(f"Copied dependencies to: {destPath}", args.output)
+            
+        if args.verbose and alreadySatisfiedRefs:
+            dpPrint("\nAlready satisfied dependencies:", args.output)
+            for dep, info in alreadySatisfiedRefs.items():
+                dpPrint(f"  {dep} (satisfied by: {info['satisfied_by']})", args.output)
             
         return missingRefs, foundRefs
     except Exception as error:
